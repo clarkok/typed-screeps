@@ -1029,6 +1029,51 @@ declare const POWER_INFO: {
         ops: 100;
     };
 };
+
+// Season 2
+declare const RESOURCE_SYMBOL_ALEPH : RESOURCE_SYMBOL_ALEPH;
+declare const RESOURCE_SYMBOL_BETH : RESOURCE_SYMBOL_BETH;
+declare const RESOURCE_SYMBOL_GIMMEL : RESOURCE_SYMBOL_GIMMEL;
+declare const RESOURCE_SYMBOL_DALETH : RESOURCE_SYMBOL_DALETH;
+declare const RESOURCE_SYMBOL_HE : RESOURCE_SYMBOL_HE;
+declare const RESOURCE_SYMBOL_WAW : RESOURCE_SYMBOL_WAW;
+declare const RESOURCE_SYMBOL_ZAYIN : RESOURCE_SYMBOL_ZAYIN;
+declare const RESOURCE_SYMBOL_HETH : RESOURCE_SYMBOL_HETH;
+declare const RESOURCE_SYMBOL_TETH : RESOURCE_SYMBOL_TETH;
+declare const RESOURCE_SYMBOL_YODH : RESOURCE_SYMBOL_YODH;
+declare const RESOURCE_SYMBOL_KAPH : RESOURCE_SYMBOL_KAPH;
+declare const RESOURCE_SYMBOL_LAMEDH : RESOURCE_SYMBOL_LAMEDH;
+declare const RESOURCE_SYMBOL_MEM : RESOURCE_SYMBOL_MEM;
+declare const RESOURCE_SYMBOL_NUN : RESOURCE_SYMBOL_NUN;
+declare const RESOURCE_SYMBOL_SAMEKH : RESOURCE_SYMBOL_SAMEKH;
+declare const RESOURCE_SYMBOL_AYIN : RESOURCE_SYMBOL_AYIN;
+declare const RESOURCE_SYMBOL_PE : RESOURCE_SYMBOL_PE;
+declare const RESOURCE_SYMBOL_TSADE : RESOURCE_SYMBOL_TSADE;
+declare const RESOURCE_SYMBOL_QOPH : RESOURCE_SYMBOL_QOPH;
+declare const RESOURCE_SYMBOL_RES : RESOURCE_SYMBOL_RES;
+declare const RESOURCE_SYMBOL_SIN : RESOURCE_SYMBOL_SIN;
+declare const RESOURCE_SYMBOL_TAW : RESOURCE_SYMBOL_TAW;
+
+declare const FIND_SYMBOL_CONTAINERS : FIND_SYMBOL_CONTAINERS;
+declare const LOOK_SYMBOL_CONTAINERS : LOOK_SYMBOL_CONTAINERS;
+declare const SYMBOL_CONTAINER_SPAWN_CHANCE : SYMBOL_CONTAINER_SPAWN_CHANCE;
+declare const SYMBOL_CONTAINER_SPAWN_INTERVAL_TICKS : SYMBOL_CONTAINER_SPAWN_INTERVAL_TICKS; //ticks
+
+declare const FIND_SYMBOL_DECODERS : FIND_SYMBOL_DECODERS;
+declare const LOOK_SYMBOL_DECODERS : LOOK_SYMBOL_DECODERS;
+
+declare const SYMBOLS : SymbolConstant[];
+declare const CONTROLLER_LEVEL_SCORE_MULTIPLIERS: {
+    0: 0;
+    1: 1;
+    2: 1;
+    3: 1;
+    4: 3;
+    5: 9;
+    6: 27;
+    7: 81;
+    8: 243;
+}
 /**
  * A site of a structure which is currently under construction.
  */
@@ -1364,7 +1409,7 @@ interface Creep extends RoomObject {
      * @param resourceType One of the RESOURCE_* constants
      * @param amount The amount of resources to be transferred. If omitted, all the available carried amount is used.
      */
-    transfer(target: AnyCreep | Structure, resourceType: ResourceConstant, amount?: number): ScreepsReturnCode;
+    transfer(target: AnyCreep | Structure | SymbolDecoder, resourceType: ResourceConstant, amount?: number): ScreepsReturnCode;
     /**
      * Upgrade your controller to the next level using carried energy.
      *
@@ -1392,7 +1437,7 @@ interface Creep extends RoomObject {
      * @param resourceType The target One of the RESOURCE_* constants..
      * @param amount The amount of resources to be transferred. If omitted, all the available amount is used.
      */
-    withdraw(target: Structure | Tombstone | Ruin, resourceType: ResourceConstant, amount?: number): ScreepsReturnCode;
+    withdraw(target: Structure | Tombstone | Ruin | SymbolContainer, resourceType: ResourceConstant, amount?: number): ScreepsReturnCode;
 }
 
 interface CreepConstructor extends _Constructor<Creep>, _ConstructorById<Creep> {}
@@ -1561,6 +1606,10 @@ interface Game {
      * System game tick counter. It is automatically incremented on every tick.
      */
     time: number;
+
+    score: number;
+
+    symbols: { [s: string]: number }
 
     /**
      * Get an object with the specified unique ID. It may be a game object of any type. Only objects from the rooms which are visible to you can be accessed.
@@ -1803,6 +1852,8 @@ interface AllLookAtTypes {
     tombstone: Tombstone;
     powerCreep: PowerCreep;
     ruin: Ruin;
+    symbolContainer: SymbolContainer;
+    symbolDecoder: SymbolDecoder;
 }
 
 type LookAtTypes = Partial<AllLookAtTypes>;
@@ -1845,7 +1896,9 @@ interface FindTypes {
         | Nuke
         | Tombstone
         | Deposit
-        | Ruin;
+        | Ruin
+        | SymbolDecoder
+        | SymbolContainer;
     1: RoomPosition; // FIND_EXIT_TOP
     3: RoomPosition; // FIND_EXIT_RIGHT
     5: RoomPosition; // FIND_EXIT_BOTTOM
@@ -1874,6 +1927,8 @@ interface FindTypes {
     121: PowerCreep; // FIND_HOSTILE_POWER_CREEPS
     122: Deposit; // FIND_DEPOSITS
     123: Ruin; // FIND_RUINS
+    10021: SymbolContainer; // FIND_SYMBOL_CONTAINERS
+    10022: SymbolDecoder; // FIND_SYMBOL_DECODERS
 }
 
 interface FindPathOpts {
@@ -2147,7 +2202,9 @@ type FindConstant =
     | FIND_MY_POWER_CREEPS
     | FIND_HOSTILE_POWER_CREEPS
     | FIND_DEPOSITS
-    | FIND_RUINS;
+    | FIND_RUINS
+    | FIND_SYMBOL_CONTAINERS
+    | FIND_SYMBOL_DECODERS;
 
 type FIND_EXIT_TOP = 1;
 type FIND_EXIT_RIGHT = 3;
@@ -2217,7 +2274,9 @@ type LookConstant =
     | LOOK_TERRAIN
     | LOOK_TOMBSTONES
     | LOOK_POWER_CREEPS
-    | LOOK_RUINS;
+    | LOOK_RUINS
+    | LOOK_SYMBOL_CONTAINERS
+    | LOOK_SYMBOL_DECODERS;
 
 type LOOK_CONSTRUCTION_SITES = "constructionSite";
 type LOOK_CREEPS = "creep";
@@ -2339,7 +2398,8 @@ type ResourceConstant =
     | MineralConstant
     | MineralCompoundConstant
     | DepositConstant
-    | CommodityConstant;
+    | CommodityConstant
+    | SymbolConstant;
 
 type _ResourceConstantSansEnergy = Exclude<ResourceConstant, RESOURCE_ENERGY>;
 
@@ -2757,6 +2817,62 @@ type EffectConstant = EFFECT_INVULNERABILITY | EFFECT_COLLAPSE_TIMER;
 
 type EFFECT_INVULNERABILITY = 1001;
 type EFFECT_COLLAPSE_TIMER = 1002;
+
+// Season 2
+type SymbolConstant =
+    | RESOURCE_SYMBOL_ALEPH
+    | RESOURCE_SYMBOL_BETH
+    | RESOURCE_SYMBOL_GIMMEL
+    | RESOURCE_SYMBOL_DALETH
+    | RESOURCE_SYMBOL_HE
+    | RESOURCE_SYMBOL_WAW
+    | RESOURCE_SYMBOL_ZAYIN
+    | RESOURCE_SYMBOL_HETH
+    | RESOURCE_SYMBOL_TETH
+    | RESOURCE_SYMBOL_YODH
+    | RESOURCE_SYMBOL_KAPH
+    | RESOURCE_SYMBOL_LAMEDH
+    | RESOURCE_SYMBOL_MEM
+    | RESOURCE_SYMBOL_NUN
+    | RESOURCE_SYMBOL_SAMEKH
+    | RESOURCE_SYMBOL_AYIN
+    | RESOURCE_SYMBOL_PE
+    | RESOURCE_SYMBOL_TSADE
+    | RESOURCE_SYMBOL_QOPH
+    | RESOURCE_SYMBOL_RES
+    | RESOURCE_SYMBOL_SIN
+    | RESOURCE_SYMBOL_TAW;
+
+type RESOURCE_SYMBOL_ALEPH = 'symbol_aleph';
+type RESOURCE_SYMBOL_BETH = 'symbol_beth';
+type RESOURCE_SYMBOL_GIMMEL = 'symbol_gimmel';
+type RESOURCE_SYMBOL_DALETH = 'symbol_daleth';
+type RESOURCE_SYMBOL_HE = 'symbol_he';
+type RESOURCE_SYMBOL_WAW = 'symbol_waw';
+type RESOURCE_SYMBOL_ZAYIN = 'symbol_zayin';
+type RESOURCE_SYMBOL_HETH = 'symbol_heth';
+type RESOURCE_SYMBOL_TETH = 'symbol_teth';
+type RESOURCE_SYMBOL_YODH = 'symbol_yodh';
+type RESOURCE_SYMBOL_KAPH = 'symbol_kaph';
+type RESOURCE_SYMBOL_LAMEDH = 'symbol_lamedh';
+type RESOURCE_SYMBOL_MEM = 'symbol_mem';
+type RESOURCE_SYMBOL_NUN = 'symbol_nun';
+type RESOURCE_SYMBOL_SAMEKH = 'symbol_samekh';
+type RESOURCE_SYMBOL_AYIN = 'symbol_ayin';
+type RESOURCE_SYMBOL_PE = 'symbol_pe';
+type RESOURCE_SYMBOL_TSADE = 'symbol_tsade';
+type RESOURCE_SYMBOL_QOPH = 'symbol_qoph';
+type RESOURCE_SYMBOL_RES = 'symbol_res';
+type RESOURCE_SYMBOL_SIN = 'symbol_sim';
+type RESOURCE_SYMBOL_TAW = 'symbol_taw';
+
+type FIND_SYMBOL_CONTAINERS = 10021;
+type LOOK_SYMBOL_CONTAINERS = 'symbolContainer';
+type SYMBOL_CONTAINER_SPAWN_CHANCE = 0.01;
+type SYMBOL_CONTAINER_SPAWN_INTERVAL_TICKS = 250; //ticks
+
+type FIND_SYMBOL_DECODERS = 10022;
+type LOOK_SYMBOL_DECODERS = 'symbolDecoder';
 /**
  * The options that can be accepted by `findRoute()` and friends.
  */
@@ -4406,6 +4522,8 @@ interface Room {
      *  * FIND_EXIT_BOTTOM
      *  * FIND_EXIT_LEFT
      *  * FIND_EXIT
+     *  * FIND_SYMBOL_DECODERS
+     *  * FIND_SYMBOL_CONTAINERS
      * @param opts An object with additional options
      * @returns An array with the objects found.
      */
@@ -5675,6 +5793,64 @@ type ConcreteStructure<T extends StructureConstant> = T extends STRUCTURE_EXTENS
     : T extends STRUCTURE_INVADER_CORE
     ? StructureInvaderCore
     : never;
+/**
+ * Contains a symbol resource which can be withdrawn by creeps with a CARRY part.
+ *
+ * **Only available in the Season 2 world.**
+ */
+interface SymbolContainer<T extends SymbolConstant = SymbolConstant> extends RoomObject {
+    /**
+     * A unique object identificator.
+     * You can use {@link Game.getObjectById} method to retrieve an object instance by its id.
+     */
+    id: Id<this>;
+
+    /**
+     * The symbol type that this object accepts, one of the RESOURCE_* constants from SYMBOLS.
+     */
+    resourceType: T;
+
+    /**
+     * A {@link Store} object that contains resources of this object.
+     */
+    store: Store<T, false>;
+
+    /**
+     * The amount of game ticks before this container decays.
+     */
+    ticksToDecay: number;
+}
+
+interface SymbolContainerConstructor extends _Constructor<SymbolContainer>, _ConstructorById<SymbolContainer> {}
+
+declare const SymbolContainer: SymbolContainerConstructor;
+/**
+ * Accepts symbols and enrolls it into your account. Use {@link Creep.transfer} to put scores into the collector.
+ *
+ * **Only available in the Season 2 world.**
+ */
+interface SymbolDecoder extends RoomObject {
+    /**
+     * A unique object identificator.
+     * You can use {@link Game.getObjectById} method to retrieve an object instance by its id.
+     */
+    id: Id<this>;
+
+    /**
+     * The symbol type that this object accepts, one of the RESOURCE_* constants from SYMBOLS.
+     */
+    resourceType: SymbolConstant;
+
+    /**
+     * The number of symbols to be enrolled into your account for each resource unit accepted by this object.
+     * The score multiplier depends on the level of the room controller (see {@link CONTROLLER_LEVEL_SCORE_MULTIPLIERS} constant).
+     */
+    scoreMultiplier: number;
+}
+
+interface SymbolDecoderConstructor extends _Constructor<SymbolDecoder>, _ConstructorById<SymbolDecoder> {}
+
+declare const SymbolDecoder: SymbolDecoderConstructor;
 /**
  * A remnant of dead creeps. This is a walkable structure.
  * <ul>
